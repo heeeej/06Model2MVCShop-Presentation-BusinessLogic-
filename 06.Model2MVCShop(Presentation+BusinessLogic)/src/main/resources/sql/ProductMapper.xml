@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- UserMapper.xml :: SQL 를 갖는 MetaData - MyBatis Framework 은 XML MetaData 
+	를 사용 SQL구문을 관리 (SQL은 xml 을 통해 적절히 캡슐화 되어 애플리케이선 외부로 분리함) - SQL문의 입력(?) / 
+	출력(?)을 매핑한다. <== 아래의 select element 참조 -->
+
+<mapper namespace="ProductMapper">
+
+	<!-- SELECT 매핑구문 :: select element -->
+	<resultMap id="productSelectMap" type="product">
+		<result property="fileName" 				column="image_file"				 jdbcType="VARCHAR" />
+		<result property="manuDate" 			column="manufacture_day" 	jdbcType="VARCHAR" />
+		<result property="price" 						column="price" 						jdbcType="NUMERIC" />
+		<result property="prodDetail" 			column="prod_detail" 				jdbcType="VARCHAR" />
+		<result property="prodName" 			column="prod_name" 				jdbcType="VARCHAR" />
+		<result property="prodNo" 				column="prod_no" 					jdbcType="NUMERIC" />
+		<result property="regDate" 				column="reg_date" 					jdbcType="DATE" />
+		<result property="prodTranCode" 		column="tran_status_code"
+			jdbcType="NUMERIC" />
+	</resultMap>
+
+<!-- SQL : addProduct -->
+	<insert id="addProduct" parameterType="product">
+		INSERT
+		INTO product
+		VALUES
+		(seq_product_prod_no.nextval,
+		#{prodName},
+		#{prodDetail},
+		#{manuDate},
+		#{price},
+		#{fileName},
+		SYSDATE)
+	</insert>
+
+<!-- SQL : SELECT getProduct -->
+	<select id="getProduct" parameterType="Int" resultMap="productSelectMap">
+
+		SELECT
+		*FROM product WHERE prod_no=#{value}
+
+	</select>
+
+<!-- SQL : UPDATE updateProduct -->
+	<update id="updateProduct" parameterType="product">
+		UPDATE product
+		<set>
+			prod_name=#{prodName:VARCHAR},
+			price=#{price:NUMERIC},
+			prod_detail=#{prodDetail:VARCHAR},
+			manufacture_day=#{manuDate:VARCHAR},
+			image_file=#{fileName:VARCHAR}
+		</set>
+		WHERE prod_no=#{prodNo}
+	</update>
+
+	<!-- <delete id="deleteProduct" parameterType="java.lang.String" > DELETE 
+		FROM product WHERE prod_no=#{value} </delete> -->
+
+
+	<sql id="select-product">
+		SELECT
+		p.prod_no, p.prod_name, p.price, p.reg_date,
+		t.tran_status_code
+		FROM
+		product p, transAction t
+
+	</sql>
+
+	<sql id="orderby-prodNo-desc">
+		ORDER BY prod_no
+	</sql>
+
+<!--SQL : search productList 참고  -->
+	<sql id="productList">
+		<include refid="select-product" />
+		<where>
+			<choose>
+				<when test="searchCondition=='0'">
+					
+						p.prodNo LIKE '%${searchKeyword}%'
+
+				</when>
+				<when test="searchCondition=='1'">
+					
+						prod_name LIKE '%${searchKeyword}%'
+					
+				</when>
+				<when test="searchCondition=='2'">
+				
+						price LIKE '%${searchKeyword}%'
+						
+				</when>
+			</choose>
+			AND t.prod_no(+)=p.prod_no
+		</where>
+		<include refid="orderby-prodNo-desc" />
+	</sql>
+
+<!-- SQL : SELECT getProductList-->
+	<select id="getProductList" parameterType="search"
+		resultMap="productSelectMap">
+		SELECT * FROM ( SELECT inner_table.*, ROWNUM AS row_seq FROM (
+		<include refid="productList" />
+		) inner_table
+		<where>
+			ROWNUM &lt;= #{endRowNum} )
+			WHERE row_seq BETWEEN #{startRowNum} AND #{endRowNum} 
+			
+			<!-- <![CDATA[<]]>=
+			${currentPage}*${pageSize}) 
+		</where>
+		<where>
+			row_seq BETWEEN
+			(${currentPage}-1)*(${pageSize}+1)
+			AND
+			${currentPage}*${pageSize}-->
+	</where>
+
+	</select>
+	
+	<!-- SQL : SELECT ROW Count -->
+	<select  id="getTotalCount"  parameterType="search"	 resultType="int">
+	  	SELECT COUNT(*)
+	  	FROM(<include refid="productList"/> ) countTable						
+	 </select>
+
+
+
+</mapper>
+		
+		
+		

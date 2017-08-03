@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper
+		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- UserMapper.xml :: SQL 를 갖는 MetaData - MyBatis Framework 은 XML MetaData 
+	를 사용 SQL구문을 관리 (SQL은 xml 을 통해 적절히 캡슐화 되어 애플리케이선 외부로 분리함) - SQL문의 입력(?) / 
+	출력(?)을 매핑한다. <== 아래의 select element 참조 -->
+
+<mapper namespace="PurchaseMapper">
+
+	<!-- SELECT 매핑구문 :: select element -->
+	<resultMap id="purchaseSelectMap" type="purchase">
+		<result property="tranNo" column="tran_no" jdbcType="NUMERIC" />
+		<result property="dlvyAddr" column="dlvy_addr" jdbcType="VARCHAR" />
+		<result property="dlvyDate" column="dlvy_date" jdbcType="DATE" />
+		<result property="dlvyRequest" column="dlvy_Request" jdbcType="VARCHAR" />
+		<result property="orderDate" column="order_date" jdbcType="DATE" />
+		<result property="paymentOption" column="payment_option"
+			jdbcType="VARCHAR" />
+		<result property="receiverName" column="receiver_name"
+			jdbcType="VARCHAR" />
+		<result property="receiverPhone" column="receiver_phone"
+			jdbcType="VARCHAR" />
+		<result property="transCode" column="tran_status_code"
+			jdbcType="VARCHAR" />
+		<association property="buyer" javaType="User">
+			<id property="userId" column="buyer_id"></id>
+			<result property="userId" column="user_id" jdbcType="VARCHAR" />
+			<result property="userName" column="user_name" jdbcType="VARCHAR" />
+			<result property="password" column="password" jdbcType="VARCHAR" />
+			<result property="role" column="role" jdbcType="VARCHAR" />
+			<result property="ssn" column="ssn" jdbcType="VARCHAR" />
+			<result property="phone" column="cell_phone" jdbcType="VARCHAR" />
+			<result property="addr" column="addr" jdbcType="VARCHAR" />
+			<result property="email" column="email" jdbcType="NUMERIC" />
+			<result property="regDate" column="reg_date" jdbcType="DATE" />
+		</association>
+		<association property="purchaseProd" javaType="Product">
+			<id property="prodNo" column="prod_no"></id>
+			<result property="fileName" column="image_file" jdbcType="VARCHAR" />
+			<result property="manuDate" column="manufacture_day" jdbcType="VARCHAR" />
+			<result property="price" column="price" jdbcType="NUMERIC" />
+			<result property="prodDetail" column="prod_detail" jdbcType="VARCHAR" />
+			<result property="prodName" column="prod_name" jdbcType="VARCHAR" />
+			<result property="prodNo" column="prod_no" jdbcType="NUMERIC" />
+			<result property="regDate" column="reg_date" jdbcType="DATE" />
+		</association>
+
+	</resultMap>
+
+	<!-- SQL : addProduct -->
+	<insert id="addPurchase" parameterType="purchase">
+		INSERT INTO transAction
+		VALUES
+		(seq_product_prod_no.nextval,
+		#{purchaseProd.prodNo:NUMERIC},
+		#{buyer.userId:VARCHAR},
+		#{paymentOption:VARCHAR},
+		#{receiverName:VARCHAR},
+		#{receiverPhone:VARCHAR},
+		#{dlvyAddr:VARCHAR},
+		#{dlvyRequest:VARCHAR},
+		1,
+		SYSDATE,
+		#{dlvyDate})
+	</insert>
+
+	<!-- SQL : SELECT getPurchase1 -->
+	<select id="getPurchase" parameterType="Int" resultMap="purchaseSelectMap">
+
+		SELECT
+		*FROM transaction WHERE tran_no=#{value}
+
+	</select>
+
+
+	<!-- SQL : SELECT getPurchase2 -->
+	<select id="getPurchase2" parameterType="Int" resultMap="purchaseSelectMap">
+
+		SELECT
+		*FROM transaction WHERE prod_no=#{value}
+
+	</select>
+
+
+	<!-- SQL : UPDATE updatePurchase -->
+	<update id="updatePurchase" parameterType="purchase">
+		UPDATE transaction
+		<set>
+			payment_option=#{paymentOption:VARCHAR},
+			receiver_name=#{receiverName:VARCHAR},
+			receiver_phone=#{receiverPhone:VARCHAR},
+			dlvy_addr=#{dlvyAddr:VARCHAR},
+			dlvy_request=#{dlvyRequest:VARCHAR},
+			dlvy_date=#{dlvyDate:VARCHAR}
+		</set>
+		WHERE tran_no=#{tranNo}
+	</update>
+
+	<!-- <delete id="deleteProduct" parameterType="java.lang.String" > DELETE 
+		FROM product WHERE prod_no=#{value} </delete> -->
+
+	<!-- SQL : UPDATE updateTranCode -->
+	<update id="updateTranCode" parameterType="purchase">
+		UPDATE transAction
+		<set>
+			tran_status_code=#{transCode}
+		</set>
+		<where>
+			tran_no=#{tranNo}
+		</where>
+	</update>
+	
+
+
+	
+
+	<sql id="purchaseList">
+		SELECT
+		t.tran_no, t.buyer_id, p.prod_name, t.tran_status_code
+		FROM transAction t, product p
+		<where>
+			t.buyer_id IN #{buyerId} 
+			AND t.prod_no=p.prod_no
+		</where>
+		<include refid="orderby-tranNo-desc" />
+	</sql>
+
+	<sql id="orderby-tranNo-desc">
+		ORDER BY tran_no
+	</sql>
+
+
+	<!-- SQL : SELECT getPurchaseList -->
+	<select id="getPurchaseList" parameterType="map" resultMap="purchaseSelectMap">
+		SELECT * FROM ( SELECT inner_table.*, ROWNUM AS row_seq FROM (
+		<include refid="purchaseList" />
+		) inner_table
+
+		<where>
+			ROWNUM &lt;= #{search.endRowNum} )
+			WHERE row_seq BETWEEN #{search.startRowNum} AND #{search.endRowNum}  
+			
+			<!-- <![CDATA[<]]>=
+			${search.currentPage}*${search.pageSize})
+		</where>
+		<where>
+			row_seq BETWEEN
+			(${search.currentPage}-1)*(${search.pageSize}+1)
+			AND
+			${search.currentPage}*${search.pageSize} -->
+		</where>
+
+	</select>
+
+
+	<!-- SQL : SELECT getSaleList -->
+	<sql id="saleList">
+		SELECT
+		t.tran_no, t.prod_no, t.buyer_id, p.prod_name, t.order_date, t.tran_status_code
+		FROM transAction t, product p
+		<where>
+			t.tran_status_code = '3' AND t.prod_no=p.prod_no
+		</where>
+		<include refid="orderby-tranNo-desc" />
+	</sql>
+
+
+
+	<select id="getSaleList" parameterType="search" resultMap="purchaseSelectMap">
+		SELECT * FROM ( SELECT inner_table.*, ROWNUM AS row_seq FROM (
+		<include refid="saleList" />
+		) inner_table
+		<where>
+			ROWNUM &lt;= #{endRowNum} )
+			WHERE row_seq BETWEEN #{startRowNum} AND #{endRowNum}  
+			
+			<!-- <![CDATA[<]]>=
+			${currentPage}*${pageSize})
+		</where>
+		<where>
+			row_seq BETWEEN
+			(${currentPage}-1)*(${pageSize}+1)
+			AND
+			${currentPage}*${pageSize} -->
+		</where>
+
+	</select>
+
+
+	<!-- SQL : SELECT ROW PurchaseTotalCount -->
+	<select id="getPurchaseTotalCount" parameterType="map" resultType="int">
+		SELECT COUNT(*)
+		FROM(
+		<include refid="purchaseList" />
+		) countTable
+		
+	</select>
+	
+		<!-- SQL : SELECT ROW SaleTotalCount -->
+	<select id="getSaleTotalCount" parameterType="search" resultType="int">
+		SELECT COUNT(*)
+		FROM(
+		<include refid="saleList" />
+		) countTable
+		
+	</select>
+	
+	
+
+
+
+</mapper>
+		
+		
+		
